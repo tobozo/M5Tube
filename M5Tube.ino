@@ -161,8 +161,8 @@ static inline void fps(const int seconds){
 
 
 void wget (String bin_url, String appName, const char* &ca) {
-  //M5.Lcd.setCursor(0,0);
-  //M5.Lcd.print(appName);
+  M5.Lcd.setCursor(0,20);
+  M5.Lcd.print("Downloading: " + appName);
   Serial.println("Will download " + bin_url + " and save to SD as " + appName);
   http.begin(bin_url, ca);
   
@@ -170,15 +170,15 @@ void wget (String bin_url, String appName, const char* &ca) {
   if(httpCode <= 0) {
     Serial.println("[HTTP] GET... failed");
     http.end();
-    //M5.Lcd.setCursor(0,0);
-    //M5.Lcd.print("HTTP Get Failed");
+    M5.Lcd.setCursor(0,10);
+    M5.Lcd.print("HTTP Get Failed");
     return;
   }
   if(httpCode != HTTP_CODE_OK) {
     Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str()); 
     http.end();
-    //M5.Lcd.setCursor(0,0);
-    //M5.Lcd.print("HTTP Get Failed");
+    M5.Lcd.setCursor(0,10);
+    M5.Lcd.print("HTTP Get Failed");
     return;
   }
 
@@ -186,8 +186,8 @@ void wget (String bin_url, String appName, const char* &ca) {
   if(len<=0) {
     Serial.println("Failed to read " + bin_url + " content is empty, aborting");
     http.end();
-    //M5.Lcd.setCursor(0,0);
-    //M5.Lcd.print("HTTP Get Failed");
+    M5.Lcd.setCursor(0,10);
+    M5.Lcd.print("HTTP Get Failed");
     return;
   }
   int httpSize = len;
@@ -199,8 +199,8 @@ void wget (String bin_url, String appName, const char* &ca) {
     Serial.println("Failed to open " + appName + " for writing, aborting");
     http.end();
     myFile.close();
-    //M5.Lcd.setCursor(0,0);
-    //M5.Lcd.print("SD Write Failed");
+    M5.Lcd.setCursor(0,0);
+    M5.Lcd.print("SD Write Failed");
     return;
   }
 
@@ -263,7 +263,7 @@ bool loadPlaylist(bool forceDownload = false) {
     String base_url = root["base_url"].as<String>();
 
     M5Menu.clearList();
-    M5Menu.setListCaption("M5Tube");
+    //M5Menu.setListCaption("M5Tube");
   
     for(uint16_t i=0;i<playListSize;i++) {
   
@@ -329,7 +329,7 @@ bool loadPlaylist(bool forceDownload = false) {
 
     }
     
-    M5Menu.drawAppMenu("Video Player", "Stop", "Play", "Next");
+    M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
     M5Menu.addList("Download"); // MenuID = M5Menu.getListID();
     M5Menu.setListID(0);
     M5Menu.showList();
@@ -528,15 +528,16 @@ void setup() {
 
   M5Menu.clearList();
   M5Menu.setListCaption("Playlist");
-  M5Menu.drawAppMenu("Video Player", "Stop", "Play", "Next");
+  M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
   
   if(!loadPlaylist()) {
     getPlaylist();
   }
+
   if( Playlist[videoNum].thumbFileName!="" ) {
-    M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 160, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
+    M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 150, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
   }
-  
+
 }
 
 void loop() {
@@ -544,7 +545,12 @@ void loop() {
   if(digitalRead(BUTTON_B_PIN) == 0) {
     Serial.println("B Pressed");
     if( playListSize>videoNum ) {
+      M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
       playVideo(Playlist[videoNum]);
+      M5Menu.showList();
+      if( Playlist[videoNum].thumbFileName!="" ) {
+        M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 150, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
+      }
     } else {
       // download playList 
       getPlaylist();
@@ -560,12 +566,12 @@ void loop() {
     if(playListSize==videoNum) {
       M5Menu.drawAppMenu("Video Downloader", "Sync", "Download", "Next");
     } else {
-      M5Menu.drawAppMenu("Video Player", "Stop", "Play", "Next");
+      M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
     }
     M5Menu.setListID(videoNum);
     M5Menu.showList();
     if( Playlist[videoNum].thumbFileName!="" ) {
-      M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 160, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
+      M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 150, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
     }
   }
   
