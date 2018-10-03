@@ -101,6 +101,7 @@ if(file_exists('playlist.json')) {
 }
 
 $merged = false;
+$index = 0;
 
 foreach($playlist['playlist'] as $index => $item) {
   if($item['profileName']==$jsonObj->profileName) {
