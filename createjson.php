@@ -94,10 +94,10 @@ echo $output;
 if(file_exists('playlist.json')) {
   $playlist = json_decode( file_get_contents('playlist.json'), true );
 } else {
-  $playlist = new STDClass;
-  $playlist->base_url = $_ENV['BASE_URL'];
-  $playlist->playlist_count = 0;
-  $playlist->playlist = array();
+  $playlist = array();
+  $playlist['base_url'] = $_ENV['BASE_URL'];
+  $playlist['playlist_count'] = 0;
+  $playlist['playlist'] = array();
 }
 
 $merged = false;

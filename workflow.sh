@@ -118,3 +118,6 @@ mv video.dat $VIDEOOUTPUTFILE
 # relevant video information
 php createjson.php $TITLE $CPS
 
+ls vid
+ls mp3
+cat playlist.json
