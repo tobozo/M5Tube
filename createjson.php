@@ -56,10 +56,19 @@ if($fps<=0 || $fps>100) {
 $jsonObj->profileName = ucwords($title);
 $jsonObj->videoFileName = "/vid/$title.dat";
 $jsonObj->audioFileName = "/mp3/$title.mp3";
+$jsonObj->thumbFileName = "/jpg/$title.mp3";
 
 $frames = glob("frames/*");
 
 echo "Found ".count($frames)." frames\n";
+
+//TODO: add JPEG thumbnail
+$thumb = $frames[rand(0,count($frames))];
+exec("convert $thumb -resize 160x160 -background black -gravity center -extent 160x160 jpg/$title.jpg");
+
+if(!file_exists("jpg/$title.jpg")) {
+  die("\nUnable to create thumbnail\n");
+}
 
 if(!file_exists('.'.$jsonObj->videoFileName)) {
   die("\nInvalid video filename\n");
@@ -70,6 +79,7 @@ if(!file_exists('.'.$jsonObj->audioFileName)) {
 
 $jsonObj->videoFileSize = (string)filesize( '.'.$jsonObj->videoFileName );
 $jsonObj->audioFileSize = (string)filesize( '.'.$jsonObj->audioFileName );
+$jsonObj->thumbFileSize = (string)filesize( '.'.$jsonObj->videoFileName );
 $jsonObj->audioSource = "0";
 $jsonObj->framespeed  = "$fps";
 $jsonObj->totalframes = (string)count($frames);
@@ -87,9 +97,6 @@ if($width<=0 || $width>320) {
 if($height<=0 || $height>240) {
   die("\nUnrealistic height: $height\n");
 }
-
-//TODO: add JPEG thumbnail
-
 
 $jsonObj->width = (string)$width;
 $jsonObj->height = (string)$height;

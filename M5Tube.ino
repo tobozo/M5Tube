@@ -98,8 +98,12 @@ struct Video {
   String profileName = "";
   String videoFileName = "";
   String audioFileName = "";
+  String thumbFileName = ""; // 160x160 JPEG file
   uint8_t audioSource = 0; // 0 = SD, 1 = SPIFFS, 2 = PROGMEM
   uint8_t videoSource = 0; // 0 = SD, 1 = SPIFFS, 2 = PROGMEM
+  int videoFileSize = 0;
+  int audioFileSize = 0;
+  int thumbFileSize = 0;
   float framespeed = 30; // fps when the video was splitted
   int totalframes = 0; // 1516; // cyriak = 1516, frozen = 3822, chem = 2222
   uint16_t width;
@@ -111,10 +115,14 @@ Video Playlist[16];
 
 void debugVideo(Video tmpVideo) {
   Serial.println("[profileName]" + String(tmpVideo.profileName));
+  Serial.println("[thumbFileName]" + String(tmpVideo.thumbFileName));
   Serial.println("[videoFileName]" + String(tmpVideo.videoFileName));
   Serial.println("[audioFileName]" + String(tmpVideo.audioFileName));
   Serial.println("[audioSource]" + String(tmpVideo.audioSource));
   Serial.println("[videoSource]" + String(tmpVideo.videoSource));
+  Serial.println("[audioFileSize]" + String(tmpVideo.audioFileSize));
+  Serial.println("[videoFileSize]" + String(tmpVideo.videoFileSize));
+  Serial.println("[thumbFileSize]" + String(tmpVideo.thumbFileSize));
   Serial.println("[framespeed]" + String(tmpVideo.framespeed));
   Serial.println("[totalframes]" + String(tmpVideo.totalframes));
   Serial.println("[width]" + String(tmpVideo.width));
@@ -260,10 +268,14 @@ bool loadPlaylist(bool forceDownload = false) {
     for(uint16_t i=0;i<playListSize;i++) {
   
       Playlist[i].profileName   = root["playlist"][i]["profileName"].as<String>();
+      Playlist[i].thumbFileName = root["playlist"][i]["thumbFileName"].as<String>();
       Playlist[i].videoFileName = root["playlist"][i]["videoFileName"].as<String>();
       Playlist[i].audioFileName = root["playlist"][i]["audioFileName"].as<String>();
       Playlist[i].audioSource   = root["playlist"][i]["audioSource"].as<uint8_t>(); // 0 = SD, 1 = SPIFFS, 2 = PROGMEM
       Playlist[i].videoSource   = root["playlist"][i]["videoSource"].as<uint8_t>(); // 0 = SD, 1 = SPIFFS, 2 = PROGMEM
+      Playlist[i].audioFileSize = root["playlist"][i]["audioFileSize"].as<int>();
+      Playlist[i].videoFileSize = root["playlist"][i]["videoFileSize"].as<int>();
+      Playlist[i].thumbFileSize = root["playlist"][i]["thumbFileSize"].as<int>();
       Playlist[i].framespeed    = root["playlist"][i]["framespeed"].as<float>(); // fps when the video was splitted
       Playlist[i].totalframes   = root["playlist"][i]["totalframes"].as<int>(); // 1516; // cyriak = 1516, frozen = 3822, chem = 2222
       Playlist[i].width         = root["playlist"][i]["width"].as<uint16_t>();
@@ -273,7 +285,7 @@ bool loadPlaylist(bool forceDownload = false) {
       
       if(SD.exists(Playlist[i].videoFileName.c_str())) {
         File tmpFile = SD.open(Playlist[i].videoFileName.c_str());
-        if(tmpFile.size()!=root["playlist"][i]["videoFileSize"].as<int>()) {
+        if(tmpFile.size() != Playlist[i].videoFileSize) {
           tmpFile.close();
           Serial.println("Video file changed " + Playlist[i].videoFileName);
           wget (base_url + Playlist[i].videoFileName, Playlist[i].videoFileName, phpsecure_ca);
@@ -287,7 +299,7 @@ bool loadPlaylist(bool forceDownload = false) {
       }
       if(SD.exists(Playlist[i].audioFileName.c_str())) {
         File tmpFile = SD.open(Playlist[i].audioFileName.c_str());
-        if(tmpFile.size()!=root["playlist"][i]["audioFileSize"].as<int>()) {
+        if(tmpFile.size() != Playlist[i].audioFileSize) {
           tmpFile.close();
           Serial.println("Audio file changed " + Playlist[i].audioFileName);
           wget (base_url + Playlist[i].audioFileName, Playlist[i].audioFileName, phpsecure_ca);
@@ -299,7 +311,20 @@ bool loadPlaylist(bool forceDownload = false) {
           wget (base_url + Playlist[i].audioFileName, Playlist[i].audioFileName, phpsecure_ca);
         }
       }
-
+      if(SD.exists(Playlist[i].thumbFileName.c_str())) {
+        File tmpFile = SD.open(Playlist[i].thumbFileName.c_str());
+        if(tmpFile.size() != Playlist[i].thumbFileSize) {
+          tmpFile.close();
+          Serial.println("Thumb file changed " + Playlist[i].thumbFileName);
+          wget (base_url + Playlist[i].thumbFileName, Playlist[i].thumbFileName, phpsecure_ca);
+        } else {
+          Serial.println("Thumb file already exists " + Playlist[i].thumbFileName);
+        }
+      } else {
+        if(forceDownload) {
+          wget (base_url + Playlist[i].thumbFileName, Playlist[i].thumbFileName, phpsecure_ca);
+        }
+      }
       M5Menu.addList(Playlist[i].profileName);
 
     }
@@ -508,6 +533,9 @@ void setup() {
   if(!loadPlaylist()) {
     getPlaylist();
   }
+  if( Playlist[videoNum].thumbFileName!="" ) {
+    M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 160, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
+  }
   
 }
 
@@ -524,17 +552,21 @@ void loop() {
   }
   if(digitalRead(BUTTON_C_PIN) == 0) {
     Serial.println("C Pressed");
-    M5Menu.drawAppMenu("Video Player", "Stop", "Play", "Next");
     if( playListSize>videoNum ) {
       videoNum++;
-      if(playListSize==videoNum) {
-        M5Menu.drawAppMenu("Video Downloader", "Sync", "Download", "Next");
-      }
     } else {
       videoNum = 0;
     }
+    if(playListSize==videoNum) {
+      M5Menu.drawAppMenu("Video Downloader", "Sync", "Download", "Next");
+    } else {
+      M5Menu.drawAppMenu("Video Player", "Stop", "Play", "Next");
+    }
     M5Menu.setListID(videoNum);
     M5Menu.showList();
+    if( Playlist[videoNum].thumbFileName!="" ) {
+      M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 160, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
+    }
   }
   
   if(digitalRead(BUTTON_A_PIN) == 0) {
