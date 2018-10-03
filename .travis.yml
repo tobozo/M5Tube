@@ -9,8 +9,7 @@ before_install:
  - mkdir $HOME/video
  - ls -la
  - pwd
- - cd M5Tube
- - docker build -t m5tube -f .travis.Dockerfile .
+ - docker build -t m5tube -f .travis.DockerFile .
 #env:
 #   - VIDEOTITLE='TestVideo'
 #   - VIDEOPATH='/usr/src/M5Tube/video/test.mp4'
