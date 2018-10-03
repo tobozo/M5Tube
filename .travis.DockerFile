@@ -6,7 +6,6 @@ ENV DST '/video'
 
 RUN export DEBIAN_FRONTEND=noninteractive
 RUN ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime
-RUN dpkg-reconfigure --frontend noninteractive tzdata
 RUN apt-get -qq update && apt-get install -y ffmpeg imagemagick php
 
 RUN mkdir -p /usr/src/M5Tube
