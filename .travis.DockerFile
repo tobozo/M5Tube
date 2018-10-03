@@ -6,7 +6,7 @@ ENV DST '/video'
 
 RUN export DEBIAN_FRONTEND=noninteractive
 RUN ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime
-RUN apt-get -qq update && apt-get install -y ffmpeg imagemagick php
+RUN apt-get -qq update && apt-get install -y ffmpeg imagemagick php-cli
 RUN mkdir -p /usr/src/M5Tube
 WORKDIR /usr/src/M5Tube
 COPY . /usr/src/M5Tube
