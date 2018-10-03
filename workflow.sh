@@ -95,8 +95,6 @@ echo "Output Audio : $AUDIOOUTPUTFILE"
 echo "CPS          : $CPS"
 echo "Width        : $OUTPUTWIDTH"
 
-exit 1
-
 if [ -f $AUDIOOUTPUTFILE ]; then
    # remove file to avoid ffmpeg overwrite prompt
    rm -f $AUDIOOUTPUTFILE
