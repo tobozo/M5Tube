@@ -6,6 +6,8 @@ services:
 os:
   - linux
 before_install:
+ - mkdir $HOME/video
+ - cd M5Tube
  - docker build -t m5tube -f .travis.Dockerfile .
 #env:
 #   - VIDEOTITLE='TestVideo'
@@ -13,4 +15,4 @@ before_install:
 script: >
   docker run -ti --rm
   -v $HOME/video:/usr/src/M5Tube/video
-  -w /usr/src/M5Tube M5Tube bash -c "PATH=$PATH:/usr/src/M5Tube/workflow.sh $VIDEOTITLE $VIDEOPATH"
+  -w /usr/src/M5Tube m5tube bash -c "PATH=$PATH:/usr/src/M5Tube/workflow.sh $VIDEOTITLE $VIDEOPATH"
