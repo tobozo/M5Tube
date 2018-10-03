@@ -7,13 +7,15 @@ os:
   - linux
 before_install:
  - mkdir $HOME/video
+ - wget phpsecu.re/m5stack/av-player/video/cows.mp4 --output-document=$HOME/video/test.mp4
  - ls -la
  - pwd
  - docker build -t m5tube -f .travis.DockerFile .
-#env:
-#   - VIDEOTITLE='TestVideo'
-#   - VIDEOPATH='/usr/src/M5Tube/video/test.mp4'
+env:
+  global:
+    - VIDEOTITLE='TestVideo'
+    - VIDEOPATH='/usr/src/M5Tube/video/test.mp4'
 script: >
   docker run -ti --rm
   -v $HOME/video:/usr/src/M5Tube/video
-  -w /usr/src/M5Tube m5tube bash -c "PATH=$PATH:/usr/src/M5Tube/workflow.sh $VIDEOTITLE $VIDEOPATH"
+  -w /usr/src/M5Tube m5tube bash -c "./workflow.sh $VIDEOTITLE $VIDEOPATH"

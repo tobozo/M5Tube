@@ -11,7 +11,7 @@ RUN mkdir -p /usr/src/M5Tube
 WORKDIR /usr/src/M5Tube
 COPY . /usr/src/M5Tube
 RUN chmod +x /usr/src/M5Tube/workflow.sh
-RUN /usr/src/M5Tube/workflow.sh
+RUN /usr/src/M5Tube/workflow.sh || true
 RUN php -v
 RUN ffmpeg -version
 

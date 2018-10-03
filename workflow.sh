@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# only run in its local folder
+DIR=$(dirname "${BASH_SOURCE}")
+cd $DIR
+
 function die {
   local message=$1
   [ -z "$message" ] && message="Died"
