@@ -35,6 +35,8 @@
  *
  */
 
+(PHP_SAPI !== 'cli' || isset($_SERVER['HTTP_USER_AGENT'])) && die('cli only');
+ 
 $maxChunkSize = 1024; // TODO: dynamyze this
 $totalSize = 0;
 $totalChunks = 0;

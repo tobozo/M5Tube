@@ -35,6 +35,8 @@
  *
  */
 
+(PHP_SAPI !== 'cli' || isset($_SERVER['HTTP_USER_AGENT'])) && die('cli only');
+ 
 if(!isset($_SERVER["argv"])) die("\nno args\n");
 if(!isset($_SERVER["argv"][1])) die("\nnot enough args (missing 1st arg title)\n");
 if(!isset($_SERVER["argv"][2])) die("\nnot enough args (missing 2nd arg fps)\n");
@@ -85,6 +87,9 @@ if($width<=0 || $width>320) {
 if($height<=0 || $height>240) {
   die("\nUnrealistic height: $height\n");
 }
+
+//TODO: add JPEG thumbnail
+
 
 $jsonObj->width = (string)$width;
 $jsonObj->height = (string)$height;
