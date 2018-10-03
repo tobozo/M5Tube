@@ -7,11 +7,13 @@ ENV DST '/video'
 RUN export DEBIAN_FRONTEND=noninteractive
 RUN ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime
 RUN apt-get -qq update && apt-get install -y ffmpeg imagemagick php
-
 RUN mkdir -p /usr/src/M5Tube
 WORKDIR /usr/src/M5Tube
 COPY . /usr/src/M5Tube
 RUN chmod +x /usr/src/M5Tube/workflow.sh
+RUN /usr/src/M5Tube/workflow.sh
+RUN php -v
+RUN ffmpeg -version
 
 #ADD workflow.sh /usr/src/M5Tube/workflow.sh
 #CMD /usr/src/M5Tube/workflow.sh
