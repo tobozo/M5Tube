@@ -56,7 +56,7 @@ if($fps<=0 || $fps>100) {
 $jsonObj->profileName = ucwords($title);
 $jsonObj->videoFileName = "/vid/$title.dat";
 $jsonObj->audioFileName = "/mp3/$title.mp3";
-$jsonObj->thumbFileName = "/jpg/$title.mp3";
+$jsonObj->thumbFileName = "/jpg/$title.jpg";
 
 $frames = glob("frames/*");
 
