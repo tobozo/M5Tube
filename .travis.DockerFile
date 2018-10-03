@@ -6,8 +6,7 @@ ENV DST '/video'
 
 RUN apt-get -qq update && apt-get install -y sudo docker.io \
     git make btrfs-tools libdevmapper-dev curl \
-    libgpgme-dev libostree-dev ffmpeg imagemagick php \
-    libav-tools inotify-tools file language-pack-en
+    libgpgme-dev libostree-dev ffmpeg imagemagick php
 
 RUN mkdir -p /usr/src/M5Tube
 WORKDIR /usr/src/M5Tube
