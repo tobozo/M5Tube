@@ -1,15 +1,15 @@
 # M5Tube
 
-... is a video player for M5Stack ...
+M5Tube is a video player for M5Stack.
 
 ![image](https://user-images.githubusercontent.com/1893754/46413569-8be9be80-c721-11e8-8547-5c1d063c1d8c.png)
 
-... and a video conversion utility in a Docker image
+M5Tube is also a video conversion utility, it can be used locally or in a Docker image.
 
 ![image](https://user-images.githubusercontent.com/1893754/46411749-dddc1580-c71c-11e8-8f6a-5fa7a5527877.png)
 
 
-Prereqsuisites
+Prerequisites
 --------------
   - create "/mp3", "/vid" and "/json" folders on the MicroSD Card
   - either:
@@ -47,11 +47,14 @@ Any successful sync operation will overwrite the local files.
 
 Software Stack (ESP32)
 ----------------------
-  [M5Stack.h](https://github.com/m5stack/M5Stack/)
-  [M5StackUpdater](https://github.com/tobozo/M5Stack-SD-Updater/)
-  [M5StackSAM](https://github.com/tomsuch/M5StackSAM/)
-  [ArduinoJson](https://github.com/bblanchon/ArduinoJson/)
-  [ESP8266Audio](https://github.com/earlephilhower/ESP8266Audio/)
+  - [M5Stack.h](https://github.com/m5stack/M5Stack/)
+  - [M5StackUpdater](https://github.com/tobozo/M5Stack-SD-Updater/)
+  - [M5StackSAM](https://github.com/tomsuch/M5StackSAM/)
+  - [ArduinoJson](https://github.com/bblanchon/ArduinoJson/)
+  - [ESP8266Audio](https://github.com/earlephilhower/ESP8266Audio/)
   
 Credits
 -------
+  - [Masa Hage](https://github.com/MhageGH) (motivation)
+  - [Tixlegeek](https://github.com/tixlegeek) (art director)
+  - [Cyriak](https://www.youtube.com/user/cyriak) (materials for the demo video)
