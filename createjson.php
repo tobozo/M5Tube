@@ -128,4 +128,6 @@ if($merged===false) {
   $playlist['playlist_count']++;
 }
 
+$playlist['playlist'] = array_values($playlist['playlist']);
+
 file_put_contents("playlist.json", json_encode($playlist, JSON_UNESCAPED_SLASHES |  JSON_PRETTY_PRINT));
