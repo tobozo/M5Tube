@@ -14,7 +14,7 @@ before_install:
 env:
   global:
     - VIDEOTITLE='TestVideo'
-    - VIDEOPATH='/usr/src/M5Tube/video/test.mp4'
+    - VIDEOPATH='test.mp4'
 script: >
   docker run -ti --rm
   -v $HOME/video:/usr/src/M5Tube/video

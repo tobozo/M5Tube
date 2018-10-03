@@ -75,7 +75,7 @@ if [ -z "$4" ]
 fi
 
 TITLE=${1//[^a-zA-Z0-9_-]/}
-VIDEOINPUTFILE=${2//[^a-zA-Z0-9_-\/\.]/}
+VIDEOINPUTFILE=video/${2//[^a-zA-Z0-9_-\/\.]/}
 VIDEOOUTPUTFILE=vid/$TITLE.dat
 AUDIOOUTPUTFILE=mp3/$TITLE.mp3
 
