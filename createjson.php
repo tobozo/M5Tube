@@ -79,7 +79,7 @@ if(!file_exists('.'.$jsonObj->audioFileName)) {
 
 $jsonObj->videoFileSize = (string)filesize( '.'.$jsonObj->videoFileName );
 $jsonObj->audioFileSize = (string)filesize( '.'.$jsonObj->audioFileName );
-$jsonObj->thumbFileSize = (string)filesize( '.'.$jsonObj->videoFileName );
+$jsonObj->thumbFileSize = (string)filesize( '.'.$jsonObj->thumbFileName );
 $jsonObj->audioSource = "0";
 $jsonObj->framespeed  = "$fps";
 $jsonObj->totalframes = (string)count($frames);
