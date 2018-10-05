@@ -1,7 +1,6 @@
 /*
  * 
  * M5Tube : video player for M5Stack with conversion support
- * as seen on https://www.youtube.com/watch?v=ccOSyEdZdiw
  * https://github.com/tobozo/M5Tube
  * 
  * Copyright (2018) tobozo
@@ -76,6 +75,7 @@ bool playing = true;
 unsigned long currentMillis;
 unsigned long droppedFrames = 0;
 uint8_t playListSize = 1;
+bool autoplay = false;
 uint8_t videoNum = 0; // video index in playlist
 const String PLAYLIST_URL = "https://phpsecu.re/m5stack/av-player/playlist.json";
 const String PLAYLIST_PATH = "/json/playlist.json";
@@ -104,6 +104,8 @@ struct Video {
   int videoFileSize = 0;
   int audioFileSize = 0;
   int thumbFileSize = 0;
+  int audioLength = 0;
+  int audioCursor = 0;
   float framespeed = 30; // fps when the video was splitted
   int totalframes = 0; // 1516; // cyriak = 1516, frozen = 3822, chem = 2222
   uint16_t width;
@@ -137,6 +139,18 @@ char* strToChar(String str) {
   return buf;
 }
 
+String MMSS;
+
+String getDigits(int digits){
+ if(digits < 10) return "0" + String(digits);
+ else return String(digits);
+}
+
+
+String mmss(int seconds) {
+  return getDigits(round(seconds/60)) + ':' + getDigits(round(seconds%60));
+}
+
 static inline void fps(const int seconds){
   // Create static variables so that the code and variables can
   // all be declared inside a function
@@ -153,12 +167,19 @@ static inline void fps(const int seconds){
     M5.Lcd.print(framesPerSecond);
     M5.Lcd.print(" FPS ---- ");
     M5.Lcd.print( String(droppedFrames) + " frames dropped");
+    M5.Lcd.setCursor(0,20);
+    Playlist[videoNum].audioCursor -= seconds;
+    String strprogress = mmss( Playlist[videoNum].audioLength ) + " / " + mmss( Playlist[videoNum].audioCursor);
+    float percent =  ((float) (Playlist[videoNum].audioLength - Playlist[videoNum].audioCursor) / (float) Playlist[videoNum].audioLength);
+    M5.Lcd.print( strprogress + " " + getDigits(percent*100) + "%" );
+    uint16_t cursorPos = percent*M5.Lcd.width();
+    M5.Lcd.fillRect(0, 30, cursorPos, 2, RED);
+    //M5.Lcd.fillRect(cursorPos+1, 210, M5.Lcd.width()-cursorPos, 2, GREY);
     //Serial.println(framesPerSecond);
     frameCount = 0;
     lastMillis = now;
   }
 }
-
 
 void wget (String bin_url, String appName, const char* &ca) {
   M5.Lcd.setCursor(0,20);
@@ -371,8 +392,6 @@ void getPlaylist() {
 }
 
 
-
-
 void playVideo(Video &video) {
   switch(video.audioSource) {
     case 0:
@@ -414,7 +433,13 @@ void playVideo(Video &video) {
   unsigned long expectedlength = framelength*totalframes;
   int expectedlengthinseconds = (int)(expectedlength/1000);
   Serial.println("Audio length:" + String(expectedlengthinseconds) + " seconds");
-  int soundChunksPerImage = fileSize/(expectedlengthinseconds*framespeed) ;
+  
+  video.audioLength = expectedlengthinseconds;
+  video.audioCursor = expectedlengthinseconds;
+  
+  Serial.println( mmss(expectedlengthinseconds) );
+  
+  int soundChunksPerImage = fileSize/(expectedlengthinseconds*framespeed);
   Serial.println("Audio chunks per image : " + String(soundChunksPerImage));
   int lastFilePos = 0;
   
@@ -445,7 +470,8 @@ void playVideo(Video &video) {
         switch(gridpos%gridsize) {
           case 0:
             // native pos
-            fps(2);
+            MMSS = mmss( expected_time_frame / 1000 );
+            fps(1);
           break;
           case 1:
             x += video.width;
@@ -487,6 +513,13 @@ void playVideo(Video &video) {
         }
       }
       if (digitalRead(BUTTON_A_PIN) == 0) {
+        if(mp3->isRunning())  {
+          mp3->stop();
+        }
+        autoplay = false;
+        return;
+      }
+      if (digitalRead(BUTTON_C_PIN) == 0) {
         if(mp3->isRunning())  {
           mp3->stop();
         }
@@ -540,18 +573,33 @@ void setup() {
 
 }
 
+
+
+
+
 void loop() {
 
-  if(digitalRead(BUTTON_B_PIN) == 0) {
+  if(digitalRead(BUTTON_B_PIN) == 0 || autoplay) {
     Serial.println("B Pressed");
     if( playListSize>videoNum ) {
+      autoplay = true;
       M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
       playVideo(Playlist[videoNum]);
+      M5.Lcd.fillScreen(BLACK);
+      M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
       M5Menu.showList();
       if( Playlist[videoNum].thumbFileName!="" ) {
         M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 150, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
       }
+      if(autoplay) {
+        if(playListSize>videoNum) {
+          videoNum++;
+        } else {
+          videoNum = 0;
+        }
+      }
     } else {
+      autoplay = false;
       // download playList 
       getPlaylist();
     }
