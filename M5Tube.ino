@@ -62,6 +62,7 @@
 #include "M5StackUpdater.h"        // https://github.com/tobozo/M5Stack-SD-Updater
 #include <M5StackSAM.h>            // https://github.com/tomsuch/M5StackSAM
 #include "certificates.h"
+#include "assets.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>           // https://github.com/bblanchon/ArduinoJson/
@@ -77,7 +78,7 @@ unsigned long droppedFrames = 0;
 uint8_t playListSize = 1;
 bool autoplay = false;
 uint8_t videoNum = 0; // video index in playlist
-const String PLAYLIST_URL = "https://phpsecu.re/m5stack/av-player/playlist.json";
+const String PLAYLIST_URL = "http://phpsecu.re/m5stack/av-player/playlist.json";
 const String PLAYLIST_PATH = "/json/playlist.json";
 
 uint16_t pic[176][144];
@@ -95,19 +96,19 @@ HTTPClient http;
 SDUpdater sdUpdater;
 
 struct Video {
-  String profileName = "";
-  String videoFileName = "";
-  String audioFileName = "";
-  String thumbFileName = ""; // 160x160 JPEG file
-  uint8_t audioSource = 0; // 0 = SD, 1 = SPIFFS, 2 = PROGMEM
-  uint8_t videoSource = 0; // 0 = SD, 1 = SPIFFS, 2 = PROGMEM
-  int videoFileSize = 0;
-  int audioFileSize = 0;
-  int thumbFileSize = 0;
-  int audioLength = 0;
-  int audioCursor = 0;
-  float framespeed = 30; // fps when the video was splitted
-  int totalframes = 0; // 1516; // cyriak = 1516, frozen = 3822, chem = 2222
+  String profileName = ""; // will be displayed in the menu
+  String videoFileName = ""; // see workflow.sh for conversion
+  String audioFileName = ""; // mp3 mono 22khz/32kbps
+  String thumbFileName = ""; // must be a 160x160 JPEG file
+  uint8_t audioSource = 0; // 0 = SD, 1 = SPIFFS, 2 = PROGMEM, 3 = SPIRAM
+  uint8_t videoSource = 0; // 0 = SD, 1 = SPIFFS, 2 = PROGMEM, 3 = SPIRAM
+  int videoFileSize = 0; // used as a file signature
+  int audioFileSize = 0; // used as a file signature
+  int thumbFileSize = 0; // used as a file signature
+  int trackLength = 0; // time value (in seconds) 
+  int trackCursor = 0; // decremental time value, used for progress
+  float framespeed = 40; // video chunks per second (1 frame = 4chunks)
+  int totalframes = 0;
   uint16_t width;
   uint16_t height;
 };
@@ -163,14 +164,14 @@ static inline void fps(const int seconds){
   frameCount ++;
   if (now - lastMillis >= seconds * 1000) {
     framesPerSecond = frameCount / seconds;
-    M5.Lcd.setCursor(0,0);
+    M5.Lcd.setCursor(2,0);
     M5.Lcd.print(framesPerSecond);
     M5.Lcd.print(" FPS ---- ");
     M5.Lcd.print( String(droppedFrames) + " frames dropped");
-    M5.Lcd.setCursor(0,20);
-    Playlist[videoNum].audioCursor -= seconds;
-    String strprogress = mmss( Playlist[videoNum].audioLength ) + " / " + mmss( Playlist[videoNum].audioCursor);
-    float percent =  ((float) (Playlist[videoNum].audioLength - Playlist[videoNum].audioCursor) / (float) Playlist[videoNum].audioLength);
+    M5.Lcd.setCursor(2,20);
+    Playlist[videoNum].trackCursor -= seconds;
+    String strprogress = mmss( Playlist[videoNum].trackLength ) + " / " + mmss( Playlist[videoNum].trackCursor);
+    float percent =  ((float) (Playlist[videoNum].trackLength - Playlist[videoNum].trackCursor) / (float) Playlist[videoNum].trackLength);
     M5.Lcd.print( strprogress + " " + getDigits(percent*100) + "%" );
     uint16_t cursorPos = percent*M5.Lcd.width();
     M5.Lcd.fillRect(0, 30, cursorPos, 2, RED);
@@ -181,24 +182,30 @@ static inline void fps(const int seconds){
   }
 }
 
-void wget (String bin_url, String appName, const char* &ca) {
-  M5.Lcd.setCursor(0,20);
+void wget (String bin_url, String appName, const char* &ca=github_ca) {
+
+  M5.Lcd.setCursor(2,20);
   M5.Lcd.print("Downloading: " + appName);
   Serial.println("Will download " + bin_url + " and save to SD as " + appName);
-  http.begin(bin_url, ca);
+
+  if(bin_url.startsWith("https")) {
+    http.begin(bin_url, ca);  
+  } else {
+    http.begin(bin_url);
+  }
   
   int httpCode = http.GET();
   if(httpCode <= 0) {
     Serial.println("[HTTP] GET... failed");
     http.end();
-    M5.Lcd.setCursor(0,10);
+    M5.Lcd.setCursor(2,10);
     M5.Lcd.print("HTTP Get Failed");
     return;
   }
   if(httpCode != HTTP_CODE_OK) {
     Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str()); 
     http.end();
-    M5.Lcd.setCursor(0,10);
+    M5.Lcd.setCursor(2,10);
     M5.Lcd.print("HTTP Get Failed");
     return;
   }
@@ -207,7 +214,7 @@ void wget (String bin_url, String appName, const char* &ca) {
   if(len<=0) {
     Serial.println("Failed to read " + bin_url + " content is empty, aborting");
     http.end();
-    M5.Lcd.setCursor(0,10);
+    M5.Lcd.setCursor(2,10);
     M5.Lcd.print("HTTP Get Failed");
     return;
   }
@@ -220,13 +227,10 @@ void wget (String bin_url, String appName, const char* &ca) {
     Serial.println("Failed to open " + appName + " for writing, aborting");
     http.end();
     myFile.close();
-    M5.Lcd.setCursor(0,0);
+    M5.Lcd.setCursor(2,0);
     M5.Lcd.print("SD Write Failed");
     return;
   }
-
-  //M5.Lcd.setCursor(0,0);
-  //M5.Lcd.print("HTTP Get Failed");
 
   while(http.connected() && (len > 0 || len == -1)) {
     sdUpdater.M5SDMenuProgress((httpSize-len)/10, httpSize/10);
@@ -248,6 +252,24 @@ void wget (String bin_url, String appName, const char* &ca) {
   Serial.println("Copy done...");
   http.end();
 }
+
+
+void renderPlayList(bool clearFirst=false, bool renderList=true, bool renderThumb=true) {
+  if(clearFirst) {
+    M5.Lcd.clear();    
+  }
+  if(playListSize==videoNum) {
+    M5Menu.drawAppMenu("Video Downloader", "Sync", "Download", "Next");
+    if(renderList) M5Menu.showList();
+  } else {
+    M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
+    if(renderList) M5Menu.showList();
+    if( renderThumb && Playlist[videoNum].thumbFileName!="" ) {
+      M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 150, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
+    }
+  }
+}
+
 
 bool loadPlaylist(bool forceDownload = false) {
 
@@ -284,7 +306,6 @@ bool loadPlaylist(bool forceDownload = false) {
     String base_url = root["base_url"].as<String>();
 
     M5Menu.clearList();
-    //M5Menu.setListCaption("M5Tube");
   
     for(uint16_t i=0;i<playListSize;i++) {
   
@@ -292,13 +313,13 @@ bool loadPlaylist(bool forceDownload = false) {
       Playlist[i].thumbFileName = root["playlist"][i]["thumbFileName"].as<String>();
       Playlist[i].videoFileName = root["playlist"][i]["videoFileName"].as<String>();
       Playlist[i].audioFileName = root["playlist"][i]["audioFileName"].as<String>();
-      Playlist[i].audioSource   = root["playlist"][i]["audioSource"].as<uint8_t>(); // 0 = SD, 1 = SPIFFS, 2 = PROGMEM
-      Playlist[i].videoSource   = root["playlist"][i]["videoSource"].as<uint8_t>(); // 0 = SD, 1 = SPIFFS, 2 = PROGMEM
+      Playlist[i].audioSource   = root["playlist"][i]["audioSource"].as<uint8_t>();
+      Playlist[i].videoSource   = root["playlist"][i]["videoSource"].as<uint8_t>();
       Playlist[i].audioFileSize = root["playlist"][i]["audioFileSize"].as<int>();
       Playlist[i].videoFileSize = root["playlist"][i]["videoFileSize"].as<int>();
       Playlist[i].thumbFileSize = root["playlist"][i]["thumbFileSize"].as<int>();
-      Playlist[i].framespeed    = root["playlist"][i]["framespeed"].as<float>(); // fps when the video was splitted
-      Playlist[i].totalframes   = root["playlist"][i]["totalframes"].as<int>(); // 1516; // cyriak = 1516, frozen = 3822, chem = 2222
+      Playlist[i].framespeed    = root["playlist"][i]["framespeed"].as<float>();
+      Playlist[i].totalframes   = root["playlist"][i]["totalframes"].as<int>();
       Playlist[i].width         = root["playlist"][i]["width"].as<uint16_t>();
       Playlist[i].height        = root["playlist"][i]["height"].as<uint16_t>();
   
@@ -347,13 +368,10 @@ bool loadPlaylist(bool forceDownload = false) {
         }
       }
       M5Menu.addList(Playlist[i].profileName);
-
     }
     
-    M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
     M5Menu.addList("Download"); // MenuID = M5Menu.getListID();
     M5Menu.setListID(0);
-    M5Menu.showList();
 
     return true;
     
@@ -366,12 +384,23 @@ bool loadPlaylist(bool forceDownload = false) {
 
 
 void getPlaylist() {
+
+  M5.Lcd.drawJpg(wifi_icon, 996, 144, 90);
+  
   if((WiFi.status() != WL_CONNECTED)) {
     Serial.println("Enabling WiFi");
     WiFi.mode(WIFI_STA);
     WiFi.begin(); // set SSID/PASS from another app (i.e. WiFi Manager) and reload this app
+    uint8_t cprogress = 0;
     unsigned long startup = millis();
     while (WiFi.status() != WL_CONNECTED) {
+      cprogress++;
+      M5.Lcd.setCursor(150, 126);
+      switch(cprogress%3) {
+        case 0: M5.Lcd.print(".  ");break;
+        case 1: M5.Lcd.print(".. ");break;
+        case 2: M5.Lcd.print("...");break;
+      }
       delay(1000);
       Serial.println("Establishing connection to WiFi..");
       if(startup + 10000 < millis()) {
@@ -383,6 +412,8 @@ void getPlaylist() {
         startup = millis();
       }
     }
+    M5.Lcd.setCursor(132, 126);
+    M5.Lcd.print("   ");
   }
   
   wget (PLAYLIST_URL, PLAYLIST_PATH, phpsecure_ca);
@@ -419,44 +450,41 @@ void playVideo(Video &video) {
 
   File file = SD.open(video.videoFileName);
   if(!file) {
-    Serial.println("Unable to open video file " + video.videoFileName + ", aborting");
+    M5.Lcd.setCursor(2,10);
+    M5.Lcd.print("Can't open video " + video.videoFileName );
+    Serial.println("Can't open video " + video.videoFileName + ", aborting");
     return;
   }
 
-  float framespeed = video.framespeed;
-  int totalframes = video.totalframes; // 1516; // cyriak = 1516, frozen = 3822, chem = 2222
   const unsigned long started_at = millis();
   unsigned long framenumber = 0;
-  unsigned long framelength = 1000/framespeed; // 200ms = expecting 5fps, 220ms = expecting 4.54fps
+  unsigned long framelength = 1000 / video.framespeed; // 200ms = expecting 5fps, 220ms = expecting 4.54fps
   int fileSize = id3->getSize();
-  Serial.println("Audio size:" + String(fileSize));
-  unsigned long expectedlength = framelength*totalframes;
-  int expectedlengthinseconds = (int)(expectedlength/1000);
-  Serial.println("Audio length:" + String(expectedlengthinseconds) + " seconds");
-  
-  video.audioLength = expectedlengthinseconds;
-  video.audioCursor = expectedlengthinseconds;
-  
-  Serial.println( mmss(expectedlengthinseconds) );
-  
-  int soundChunksPerImage = fileSize/(expectedlengthinseconds*framespeed);
-  Serial.println("Audio chunks per image : " + String(soundChunksPerImage));
+  unsigned long expectedlength = framelength * video.totalframes;
+  int expectedlengthinseconds = (int)(expectedlength / 1000);
+  int soundChunksPerImage = fileSize / (expectedlengthinseconds * video.framespeed);
   int lastFilePos = 0;
+  video.trackLength = expectedlengthinseconds;
+  video.trackCursor = expectedlengthinseconds;
+
+  Serial.println("Audio size:" + String(fileSize));
+  Serial.print("Track length:" + String(expectedlengthinseconds) + " seconds = " + mmss(expectedlengthinseconds));
+  Serial.println("Audio chunks per image : " + String(soundChunksPerImage));
   
-  M5.Lcd.setCursor(0,0);
+  M5.Lcd.setCursor(2,0);
   M5.Lcd.print("FPS: ");
   M5.Lcd.println(video.framespeed);
-  M5.Lcd.print(String(video.width*2) + "x" + String(video.height*2));
+  M5.Lcd.print(String(video.width * 2) + "x" + String(video.height * 2));
   
   uint8_t gridpos = 0;
   uint8_t gridsize = 4;
-  uint16_t posx = (320 - (video.width*2)) / 2;
+  uint16_t posx = (320 - (video.width * 2)) / 2;
   uint16_t posy = (240 - (video.height*2)) / 2;
   
   while ( file.available() ) {
     framenumber++;
-    unsigned long expected_time_frame = started_at + (framelength*framenumber);
-    int expected_file_frame = soundChunksPerImage*(framenumber-1);
+    unsigned long expected_time_frame = started_at + (framelength * framenumber);
+    int expected_file_frame = soundChunksPerImage * (framenumber-1);
     file.read((uint8_t*) blockSize, 2);
     file.read((uint8_t*) pic, blockSize[0]);
     
@@ -467,7 +495,7 @@ void playVideo(Video &video) {
     if(abs(lastFilePos - expected_file_frame)  > soundChunksPerImage ) {
       mp3->loop();
       if ( expected_time_frame > millis() ) {
-        switch(gridpos%gridsize) {
+        switch(gridpos % gridsize) {
           case 0:
             // native pos
             MMSS = mmss( expected_time_frame / 1000 );
@@ -559,18 +587,10 @@ void setup() {
   M5.Lcd.clear();
   Serial.println("Started");
 
-  M5Menu.clearList();
-  M5Menu.setListCaption("Playlist");
-  M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
-  
   if(!loadPlaylist()) {
     getPlaylist();
   }
-
-  if( Playlist[videoNum].thumbFileName!="" ) {
-    M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 150, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
-  }
-
+  renderPlayList();
 }
 
 
@@ -578,30 +598,26 @@ void setup() {
 
 
 void loop() {
-
   if(digitalRead(BUTTON_B_PIN) == 0 || autoplay) {
     Serial.println("B Pressed");
     if( playListSize>videoNum ) {
       autoplay = true;
-      M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
+      renderPlayList(true, false, false);
       playVideo(Playlist[videoNum]);
-      M5.Lcd.fillScreen(BLACK);
-      M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
-      M5Menu.showList();
-      if( Playlist[videoNum].thumbFileName!="" ) {
-        M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 150, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
-      }
       if(autoplay) {
         if(playListSize>videoNum) {
           videoNum++;
         } else {
           videoNum = 0;
         }
+        M5Menu.setListID(videoNum);
       }
+      renderPlayList(true);
     } else {
       autoplay = false;
       // download playList 
       getPlaylist();
+      renderPlayList(true);
     }
   }
   if(digitalRead(BUTTON_C_PIN) == 0) {
@@ -611,16 +627,8 @@ void loop() {
     } else {
       videoNum = 0;
     }
-    if(playListSize==videoNum) {
-      M5Menu.drawAppMenu("Video Downloader", "Sync", "Download", "Next");
-    } else {
-      M5Menu.drawAppMenu("M5Tube", "Stop", "Play", "Next");
-    }
     M5Menu.setListID(videoNum);
-    M5Menu.showList();
-    if( Playlist[videoNum].thumbFileName!="" ) {
-      M5.Lcd.drawJpgFile(SD, Playlist[videoNum].thumbFileName.c_str(), 150, 40, 160, 160, 0, 0, JPEG_DIV_NONE);
-    }
+    renderPlayList();
   }
   
   if(digitalRead(BUTTON_A_PIN) == 0) {
