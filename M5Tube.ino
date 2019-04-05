@@ -78,7 +78,7 @@ unsigned long droppedFrames = 0;
 uint8_t playListSize = 1;
 bool autoplay = false;
 uint8_t videoNum = 0; // video index in playlist
-const String PLAYLIST_URL = "http://phpsecu.re/m5stack/av-player/playlist.json";
+const String PLAYLIST_URL = "https://phpsecu.re/m5stack/av-player/playlist.json";
 const String PLAYLIST_PATH = "/json/playlist.json";
 
 uint16_t pic[176][144];
@@ -219,10 +219,10 @@ void wget (String bin_url, String appName, const char* &ca=github_ca) {
     return;
   }
   int httpSize = len;
-  uint8_t buff[512] = { 0 };
+  uint8_t buff[4096] = { 0 };
   WiFiClient * stream = http.getStreamPtr();
 
-  File myFile = SD.open(appName, FILE_WRITE);
+  File myFile = SD.open(appName.c_str(), FILE_WRITE);
   if(!myFile) {
     Serial.println("Failed to open " + appName + " for writing, aborting");
     http.end();
@@ -270,6 +270,11 @@ void renderPlayList(bool clearFirst=false, bool renderList=true, bool renderThum
   }
 }
 
+#if ARDUINOJSON_VERSION_MAJOR==6
+  StaticJsonDocument<8000> jsonBuffer;
+#else
+  DynamicJsonBuffer jsonBuffer;
+#endif
 
 bool loadPlaylist(bool forceDownload = false) {
 
@@ -281,7 +286,7 @@ bool loadPlaylist(bool forceDownload = false) {
   }
   
 #if ARDUINOJSON_VERSION_MAJOR==6
-  DynamicJsonDocument jsonBuffer;
+  //StaticJsonDocument<8000> jsonBuffer;
   DeserializationError error = deserializeJson(jsonBuffer, file);
   if (error) {
     Serial.println("JSON Deserialization failed");
@@ -290,7 +295,7 @@ bool loadPlaylist(bool forceDownload = false) {
   JsonObject root = jsonBuffer.as<JsonObject>();
   if (!root.isNull())
 #else
-  DynamicJsonBuffer jsonBuffer;
+  //DynamicJsonBuffer jsonBuffer;
   JsonObject &root = jsonBuffer.parseObject(file);
   if (root.success())
 #endif
@@ -416,9 +421,7 @@ void getPlaylist() {
     M5.Lcd.print("   ");
   }
   
-  wget (PLAYLIST_URL, PLAYLIST_PATH, phpsecure_ca);
-
-  loadPlaylist(true);
+  wget(PLAYLIST_URL, PLAYLIST_PATH, phpsecure_ca);
 
 }
 
@@ -587,9 +590,18 @@ void setup() {
   M5.Lcd.clear();
   Serial.println("Started");
 
+  if( !SD.exists( "/vid" ) ) {
+    SD.mkdir( "/vid" );
+  }
+
   if(!loadPlaylist()) {
     getPlaylist();
+    if( !SD.exists( PLAYLIST_PATH ) ) {
+      Serial.println(" PLAYLIST_PATH not found, aborting");
+      while(1) { ; }
+    }
   }
+  loadPlaylist(true);
   renderPlayList();
 }
 
@@ -617,6 +629,7 @@ void loop() {
       autoplay = false;
       // download playList 
       getPlaylist();
+      loadPlaylist(true);
       renderPlayList(true);
     }
   }
